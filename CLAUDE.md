@@ -131,6 +131,55 @@ uc := usecase.NewQueueUseCase(repo1, repo2, ...)
 items, err := uc.Execute()
 ```
 
+## Git Workflow
+
+### Branch naming
+
+```
+feat/<short-description>   # new feature
+fix/<short-description>    # bug fix
+docs/<short-description>   # documentation only
+chore/<short-description>  # tooling, config, deps
+```
+
+Always create a branch linked to an issue:
+
+```bash
+gh issue develop <issue-number> --repo MarioFronza/media-tui --name "<branch-name>" --checkout
+```
+
+### Pull Requests
+
+Every PR must have:
+- **Label** matching the type: `story`, `task`, `chore`, or `bug`
+- **Assignee**: always assign to yourself (`@me`)
+- **Linked issue**: include `Closes #<number>` in the PR body
+
+```bash
+# After creating the PR
+gh pr edit <number> --add-label "<label>" --add-assignee "@me"
+```
+
+### CI requirements (branch protection on `main`)
+
+- `test` job must pass (`go test ./...` + `go build ./...`)
+- `lint` job must pass (`golangci-lint run`)
+- Both jobs are defined in `.github/workflows/ci.yml`
+
+### Commit style
+
+```
+type: short description (imperative, lowercase)
+
+feat: add library screen
+fix: remove redundant nil check flagged by gosimple
+docs: add README
+chore: add golangci-lint config
+test: add unit tests for queue usecase
+```
+
+---
+
 ### Key Patterns
 
 **Dependency rule**: `domain` defines the `MediaRepository` interface. `adapter/api` implements it. `usecase` receives it via constructor injection. `ui` calls usecases only — never adapters directly.
