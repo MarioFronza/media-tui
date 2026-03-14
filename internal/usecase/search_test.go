@@ -76,7 +76,7 @@ func TestSearch_NoRepos_ReturnsEmpty(t *testing.T) {
 	uc := NewSearchUseCase()
 	got := uc.Execute("anything")
 
-	if got != nil && len(got) != 0 {
+	if len(got) != 0 {
 		t.Fatalf("expected empty result, got %v", got)
 	}
 }

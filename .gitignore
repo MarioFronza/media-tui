@@ -1,2 +1,4 @@
 scripts/test-api.sh
 config.yaml
+media-tui
+dist/

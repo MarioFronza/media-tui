@@ -1,0 +1,22 @@
+# media-tui configuration
+# Copy this file to config.yaml in the project root, or to ~/.config/media-tui/config.yaml
+
+radarr:
+  enabled: true
+  url: http://localhost:7878
+  api_key: your_radarr_api_key_here
+
+sonarr:
+  enabled: true
+  url: http://localhost:8989
+  api_key: your_sonarr_api_key_here
+
+lidarr:
+  enabled: false
+  url: http://localhost:8686
+  api_key: your_lidarr_api_key_here
+
+readarr:
+  enabled: false
+  url: http://localhost:8787
+  api_key: your_readarr_api_key_here

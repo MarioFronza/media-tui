@@ -28,7 +28,7 @@ go build -o media-tui ./cmd/media-tui
 go test ./...
 
 # Run a single test
-go test ./internal/api/... -run TestRadarrSearch
+go test ./internal/usecase/... -run TestSearch
 
 # Lint (requires golangci-lint)
 golangci-lint run
@@ -40,15 +40,20 @@ The app follows Clean Architecture. Dependencies point inward: `ui` → `usecase
 
 ```
 cmd/media-tui/          # Entrypoint: wires dependencies, starts Bubbletea
+  main.go               # TODO: wire config, adapters, usecases, start tea.Program
 internal/
-  domain/               # Core entities and repository interfaces (no external deps)
-    media.go            # Movie, Series, Artist, Book, QueueItem structs
-    repository.go       # MediaRepository interface: Search, Add, GetQueue, GetLibrary
-  usecase/              # Application business logic; depends only on domain interfaces
-    search.go           # Fan-out search across all enabled services concurrently
-    library.go          # Browse, add, remove items from library
-    queue.go            # View and manage the download queue
-  adapter/
+  domain/               # ✅ DONE — Core entities and repository interfaces (no external deps)
+    media.go            # MediaItem, QueueItem, LibraryItem structs + MediaType constants
+    repository.go       # MediaRepository interface: Search, Add, GetQueue, GetLibrary, MediaType
+  usecase/              # ✅ DONE — Application business logic; depends only on domain interfaces
+    search.go           # SearchUseCase: fan-out search across all repos concurrently (goroutines + sync.WaitGroup)
+    library.go          # LibraryUseCase: List() and Add() for a single service repo
+    queue.go            # QueueUseCase: aggregates GetQueue() across all repos (errors skipped)
+    mock_test.go        # mockRepo: shared test double implementing domain.MediaRepository
+    search_test.go      # Unit tests for SearchUseCase
+    library_test.go     # Unit tests for LibraryUseCase
+    queue_test.go       # Unit tests for QueueUseCase
+  adapter/              # TODO
     api/                # HTTP adapters implementing domain.MediaRepository
       client.go         # Shared HTTP logic, auth headers, error handling
       radarr.go         # Radarr (/api/v3/movie/*)
@@ -57,7 +62,7 @@ internal/
       readarr.go        # Readarr (/api/v1/book/*)
     config/
       config.go         # Loads config.yaml, maps to domain config structs
-  ui/                   # Bubbletea TUI; depends on usecases, never on adapters directly
+  ui/                   # TODO — Bubbletea TUI; depends on usecases, never on adapters directly
     app.go              # Root model; owns screen state, routes tea.Msg to sub-models
     search.go           # Unified search screen
     library.go          # Library browser per service
@@ -65,6 +70,115 @@ internal/
     detail.go           # Item detail / add-to-library confirmation
 config.yaml             # User config: API keys, base URLs, enabled services
 ```
+
+### Implementation Status
+
+| Layer | Status | Notes |
+|---|---|---|
+| `domain` | ✅ Done | Entities and `MediaRepository` interface |
+| `usecase` | ✅ Done | Search, Library, Queue — all unit tested |
+| `adapter/config` | ⬜ Todo | Issue #6 |
+| `adapter/api` | ⬜ Todo | Issues #7–#11 |
+| `ui` | ⬜ Todo | Issues #12–#16 |
+| `cmd/media-tui` | ⬜ Todo | Issue #17 |
+
+### Domain Entities
+
+```go
+// domain.MediaItem — result of Search; passed to Add
+type MediaItem struct {
+    ID       int
+    Title    string
+    Year     int
+    Overview string
+    Type     MediaType  // "movie" | "series" | "artist" | "book"
+    Added    bool
+}
+
+// domain.LibraryItem — result of GetLibrary
+type LibraryItem struct {
+    ID        int
+    Title     string
+    Year      int
+    HasFile   bool
+    MediaType MediaType
+}
+
+// domain.QueueItem — result of GetQueue
+type QueueItem struct {
+    ID        int
+    Title     string
+    Status    string
+    TimeLeft  string
+    MediaType MediaType
+}
+```
+
+### Usecase API
+
+```go
+// SearchUseCase — fan-out across all repos concurrently
+uc := usecase.NewSearchUseCase(repo1, repo2, ...)
+results := uc.Execute(term)  // []domain.MediaItem, errors silently dropped
+
+// LibraryUseCase — scoped to a single repo
+uc := usecase.NewLibraryUseCase(repo)
+items, err := uc.List()
+err = uc.Add(item)
+
+// QueueUseCase — aggregates across all repos, errors skipped per repo
+uc := usecase.NewQueueUseCase(repo1, repo2, ...)
+items, err := uc.Execute()
+```
+
+## Git Workflow
+
+### Branch naming
+
+```
+feat/<short-description>   # new feature
+fix/<short-description>    # bug fix
+docs/<short-description>   # documentation only
+chore/<short-description>  # tooling, config, deps
+```
+
+Always create a branch linked to an issue:
+
+```bash
+gh issue develop <issue-number> --repo MarioFronza/media-tui --name "<branch-name>" --checkout
+```
+
+### Pull Requests
+
+Every PR must have:
+- **Label** matching the type: `story`, `task`, `chore`, or `bug`
+- **Assignee**: always assign to yourself (`@me`)
+- **Linked issue**: include `Closes #<number>` in the PR body
+
+```bash
+# After creating the PR
+gh pr edit <number> --add-label "<label>" --add-assignee "@me"
+```
+
+### CI requirements (branch protection on `main`)
+
+- `test` job must pass (`go test ./...` + `go build ./...`)
+- `lint` job must pass (`golangci-lint run`)
+- Both jobs are defined in `.github/workflows/ci.yml`
+
+### Commit style
+
+```
+type: short description (imperative, lowercase)
+
+feat: add library screen
+fix: remove redundant nil check flagged by gosimple
+docs: add README
+chore: add golangci-lint config
+test: add unit tests for queue usecase
+```
+
+---
 
 ### Key Patterns
 
