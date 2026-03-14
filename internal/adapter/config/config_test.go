@@ -44,7 +44,7 @@ func TestLoad_FromWorkingDir(t *testing.T) {
 	if err := os.Chdir(dir); err != nil {
 		t.Fatalf("chdir: %v", err)
 	}
-	t.Cleanup(func() { os.Chdir(orig) })
+	t.Cleanup(func() { _ = os.Chdir(orig) })
 
 	cfg, err := config.Load()
 	if err != nil {
@@ -72,7 +72,7 @@ func TestLoad_NotFound(t *testing.T) {
 	if err := os.Chdir(dir); err != nil {
 		t.Fatalf("chdir: %v", err)
 	}
-	t.Cleanup(func() { os.Chdir(orig) })
+	t.Cleanup(func() { _ = os.Chdir(orig) })
 
 	_, err := config.Load()
 	if err == nil {
@@ -88,7 +88,7 @@ func TestLoad_InvalidYAML(t *testing.T) {
 	if err := os.Chdir(dir); err != nil {
 		t.Fatalf("chdir: %v", err)
 	}
-	t.Cleanup(func() { os.Chdir(orig) })
+	t.Cleanup(func() { _ = os.Chdir(orig) })
 
 	_, err := config.Load()
 	if err == nil {
