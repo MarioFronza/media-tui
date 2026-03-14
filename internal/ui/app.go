@@ -3,6 +3,9 @@ package ui
 import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+
+	"github.com/MarioFronza/media-tui/internal/domain"
+	"github.com/MarioFronza/media-tui/internal/usecase"
 )
 
 type screen int
@@ -19,6 +22,11 @@ type SwitchScreenMsg struct {
 	Target screen
 }
 
+// SwitchToDetailMsg carries the selected item to the detail screen.
+type SwitchToDetailMsg struct {
+	Item domain.MediaItem
+}
+
 type App struct {
 	current screen
 	search  SearchModel
@@ -29,10 +37,10 @@ type App struct {
 	height  int
 }
 
-func NewApp() App {
+func NewApp(searchUC *usecase.SearchUseCase) App {
 	return App{
 		current: screenSearch,
-		search:  NewSearchModel(),
+		search:  NewSearchModel(searchUC),
 		library: NewLibraryModel(),
 		queue:   NewQueueModel(),
 		detail:  NewDetailModel(),
@@ -80,6 +88,11 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case screenDetail:
 			return a, a.detail.Init()
 		}
+
+	case SwitchToDetailMsg:
+		a.detail = NewDetailModelWithItem(msg.Item)
+		a.current = screenDetail
+		return a, a.detail.Init()
 	}
 
 	return a.updateActive(msg)
