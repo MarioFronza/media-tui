@@ -62,73 +62,81 @@ func (m SearchModel) Init() tea.Cmd {
 }
 
 func (m SearchModel) Update(msg tea.Msg) (SearchModel, tea.Cmd) {
-	var cmds []tea.Cmd
-
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "enter":
-			if m.loading {
-				break
-			}
-			term := m.input.Value()
-			if term == "" {
-				break
-			}
-			if !m.table.Focused() {
-				// Start search
-				m.loading = true
-				m.searched = true
-				m.input.Blur()
-				cmds = append(cmds, m.spinner.Tick, m.runSearch(term))
-			} else {
-				// Navigate to detail
-				idx := m.table.Cursor()
-				if idx >= 0 && idx < len(m.results) {
-					return m, func() tea.Msg {
-						return SwitchToDetailMsg{Item: m.results[idx]}
-					}
-				}
-			}
-
-		case "esc":
-			if m.table.Focused() {
-				m.table.Blur()
-				m.input.Focus()
-			}
-		}
-
+		return m.handleKey(msg)
 	case searchResultMsg:
-		m.loading = false
-		m.results = msg.items
-		m.table.SetRows(toTableRows(msg.items))
-		m.table.Focus()
-		return m, nil
-
+		return m.handleSearchResult(msg)
 	case spinner.TickMsg:
-		if m.loading {
-			var cmd tea.Cmd
-			m.spinner, cmd = m.spinner.Update(msg)
-			cmds = append(cmds, cmd)
+		return m.updateSpinner(msg)
+	}
+	return m.updateFocusedComponent(msg)
+}
+
+func (m SearchModel) handleKey(msg tea.KeyMsg) (SearchModel, tea.Cmd) {
+	switch msg.String() {
+	case "enter":
+		if m.table.Focused() {
+			return m.selectResult()
 		}
-		return m, tea.Batch(cmds...)
+		return m.startSearch()
+	case "esc":
+		return m.focusInput()
 	}
+	return m.updateFocusedComponent(msg)
+}
 
-	if m.loading {
-		var cmd tea.Cmd
+func (m SearchModel) startSearch() (SearchModel, tea.Cmd) {
+	term := m.input.Value()
+	if term == "" || m.loading {
+		return m, nil
+	}
+	m.loading = true
+	m.searched = true
+	m.input.Blur()
+	return m, tea.Batch(m.spinner.Tick, m.runSearch(term))
+}
+
+func (m SearchModel) selectResult() (SearchModel, tea.Cmd) {
+	idx := m.table.Cursor()
+	if idx < 0 || idx >= len(m.results) {
+		return m, nil
+	}
+	item := m.results[idx]
+	return m, func() tea.Msg { return SwitchToDetailMsg{Item: item} }
+}
+
+func (m SearchModel) focusInput() (SearchModel, tea.Cmd) {
+	m.table.Blur()
+	m.input.Focus()
+	return m, nil
+}
+
+func (m SearchModel) handleSearchResult(msg searchResultMsg) (SearchModel, tea.Cmd) {
+	m.loading = false
+	m.results = msg.items
+	m.table.SetRows(toTableRows(msg.items))
+	m.table.Focus()
+	return m, nil
+}
+
+func (m SearchModel) updateSpinner(msg spinner.TickMsg) (SearchModel, tea.Cmd) {
+	var cmd tea.Cmd
+	m.spinner, cmd = m.spinner.Update(msg)
+	return m, cmd
+}
+
+func (m SearchModel) updateFocusedComponent(msg tea.Msg) (SearchModel, tea.Cmd) {
+	var cmd tea.Cmd
+	switch {
+	case m.loading:
 		m.spinner, cmd = m.spinner.Update(msg)
-		cmds = append(cmds, cmd)
-	} else if m.table.Focused() {
-		var cmd tea.Cmd
+	case m.table.Focused():
 		m.table, cmd = m.table.Update(msg)
-		cmds = append(cmds, cmd)
-	} else {
-		var cmd tea.Cmd
+	default:
 		m.input, cmd = m.input.Update(msg)
-		cmds = append(cmds, cmd)
 	}
-
-	return m, tea.Batch(cmds...)
+	return m, cmd
 }
 
 func (m SearchModel) View() string {
