@@ -1,10 +1,18 @@
 package ui
 
-import tea "github.com/charmbracelet/bubbletea"
+import (
+	tea "github.com/charmbracelet/bubbletea"
 
-type DetailModel struct{}
+	"github.com/MarioFronza/media-tui/internal/domain"
+)
+
+type DetailModel struct {
+	item domain.MediaItem
+}
 
 func NewDetailModel() DetailModel { return DetailModel{} }
+
+func NewDetailModelWithItem(item domain.MediaItem) DetailModel { return DetailModel{item: item} }
 
 func (m DetailModel) Init() tea.Cmd { return nil }
 
