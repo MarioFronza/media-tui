@@ -25,6 +25,8 @@ type SearchModel struct {
 	loading  bool
 	searched bool
 	usecase  *usecase.SearchUseCase
+	width    int
+	height   int
 }
 
 func NewSearchModel(uc *usecase.SearchUseCase) SearchModel {
@@ -81,6 +83,8 @@ func (m SearchModel) handleKey(msg tea.KeyMsg) (SearchModel, tea.Cmd) {
 		}
 		return m.startSearch()
 	case "esc":
+		return m.blurInput()
+	case "/":
 		return m.focusInput()
 	}
 	return m.updateFocusedComponent(msg)
@@ -109,6 +113,18 @@ func (m SearchModel) selectResult() (SearchModel, tea.Cmd) {
 func (m SearchModel) focusInput() (SearchModel, tea.Cmd) {
 	m.table.Blur()
 	m.input.Focus()
+	return m, nil
+}
+
+func (m SearchModel) Focus() SearchModel {
+	m.table.Blur()
+	m.input.Focus()
+	return m
+}
+
+func (m SearchModel) blurInput() (SearchModel, tea.Cmd) {
+	m.input.Blur()
+	m.table.Blur()
 	return m, nil
 }
 
@@ -157,6 +173,24 @@ func (m SearchModel) View() string {
 	}
 
 	return header + inputView
+}
+
+func (m *SearchModel) SetSize(w, h int) {
+	m.width = w
+	m.height = h
+	m.input.Width = w - 2
+	titleW := max(10, w-31)
+	m.table.SetColumns([]table.Column{
+		{Title: "Title", Width: titleW},
+		{Title: "Year", Width: 6},
+		{Title: "Type", Width: 10},
+		{Title: "Added", Width: 7},
+	})
+	m.table.SetHeight(max(5, h-7))
+}
+
+func (m SearchModel) InputFocused() bool {
+	return m.input.Focused()
 }
 
 func (m SearchModel) runSearch(term string) tea.Cmd {

@@ -20,6 +20,8 @@ type QueueModel struct {
 	table   table.Model
 	items   []domain.QueueItem
 	loading bool
+	width   int
+	height  int
 }
 
 func NewQueueModel(uc *usecase.QueueUseCase) QueueModel {
@@ -45,6 +47,19 @@ func NewQueueModel(uc *usecase.QueueUseCase) QueueModel {
 		spinner: sp,
 		table:   t,
 	}
+}
+
+func (m *QueueModel) SetSize(w, h int) {
+	m.width = w
+	m.height = h
+	titleW := max(10, w-42)
+	m.table.SetColumns([]table.Column{
+		{Title: "Title", Width: titleW},
+		{Title: "Service", Width: 10},
+		{Title: "Status", Width: 12},
+		{Title: "Time Left", Width: 12},
+	})
+	m.table.SetHeight(max(5, h-5))
 }
 
 func (m QueueModel) Init() tea.Cmd {

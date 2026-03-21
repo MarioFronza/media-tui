@@ -25,12 +25,17 @@ type DetailModel struct {
 	item    domain.MediaItem
 	usecase *usecase.LibraryUseCase
 	status  string // "", "adding", "added", "error: ..."
+	width   int
 }
 
 func NewDetailModel() DetailModel { return DetailModel{} }
 
 func NewDetailModelWithItem(item domain.MediaItem, uc *usecase.LibraryUseCase) DetailModel {
 	return DetailModel{item: item, usecase: uc}
+}
+
+func (m *DetailModel) SetSize(w, h int) {
+	m.width = w
 }
 
 func (m DetailModel) Init() tea.Cmd { return nil }
@@ -68,12 +73,21 @@ func (m DetailModel) Update(msg tea.Msg) (DetailModel, tea.Cmd) {
 }
 
 func (m DetailModel) View() string {
-	divider := dividerStyle.Render("──────────────────────────")
+	w := m.width
+	if w <= 0 {
+		w = 80
+	}
+	divider := dividerStyle.Render(lipgloss.NewStyle().Width(w - 2).Render(""))
+	overviewWidth := w - 12 // "Overview: " label width
+	if overviewWidth < 20 {
+		overviewWidth = 20
+	}
 
 	title := fmt.Sprintf("%s %s", labelStyle.Render("Title:"), m.item.Title)
 	year := fmt.Sprintf("%s %d", labelStyle.Render("Year:"), m.item.Year)
 	mediaType := fmt.Sprintf("%s %s", labelStyle.Render("Type:"), string(m.item.Type))
-	overview := fmt.Sprintf("%s %s", labelStyle.Render("Overview:"), m.item.Overview)
+	overview := fmt.Sprintf("%s %s", labelStyle.Render("Overview:"),
+		lipgloss.NewStyle().Width(overviewWidth).Render(m.item.Overview))
 
 	var statusLine string
 	switch {

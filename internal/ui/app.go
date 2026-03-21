@@ -58,6 +58,11 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		a.width = msg.Width
 		a.height = msg.Height
+		a.search.SetSize(msg.Width, msg.Height)
+		a.library.SetSize(msg.Width, msg.Height)
+		a.queue.SetSize(msg.Width, msg.Height)
+		a.detail.SetSize(msg.Width, msg.Height)
+		return a, nil
 
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -65,14 +70,15 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return a, tea.Quit
 		case "/":
 			a.current = screenSearch
+			a.search = a.search.Focus()
 			return a, a.search.Init()
 		case "l":
-			if a.current != screenDetail {
+			if a.current != screenDetail && !a.search.InputFocused() {
 				a.current = screenLibrary
 				return a, a.library.Init()
 			}
 		case "q":
-			if a.current != screenDetail {
+			if a.current != screenDetail && !a.search.InputFocused() {
 				a.current = screenQueue
 				return a, a.queue.Init()
 			}

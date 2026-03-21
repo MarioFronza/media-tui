@@ -23,12 +23,14 @@ type serviceTab struct {
 }
 
 type LibraryModel struct {
-	services    []serviceTab
-	activeIdx   int
-	spinner     spinner.Model
-	table       table.Model
-	items       []domain.LibraryItem
-	loading     bool
+	services  []serviceTab
+	activeIdx int
+	spinner   spinner.Model
+	table     table.Model
+	items     []domain.LibraryItem
+	loading   bool
+	width     int
+	height    int
 }
 
 func NewLibraryModel(usecases ...*usecase.LibraryUseCase) LibraryModel {
@@ -65,6 +67,18 @@ func NewLibraryModel(usecases ...*usecase.LibraryUseCase) LibraryModel {
 		spinner:  sp,
 		table:    t,
 	}
+}
+
+func (m *LibraryModel) SetSize(w, h int) {
+	m.width = w
+	m.height = h
+	titleW := max(10, w-22)
+	m.table.SetColumns([]table.Column{
+		{Title: "Title", Width: titleW},
+		{Title: "Year", Width: 6},
+		{Title: "Has File", Width: 10},
+	})
+	m.table.SetHeight(max(5, h-7))
 }
 
 func (m LibraryModel) Init() tea.Cmd {
