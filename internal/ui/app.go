@@ -28,22 +28,24 @@ type SwitchToDetailMsg struct {
 }
 
 type App struct {
-	current screen
-	search  SearchModel
-	library LibraryModel
-	queue   QueueModel
-	detail  DetailModel
-	width   int
-	height  int
+	current    screen
+	search     SearchModel
+	library    LibraryModel
+	queue      QueueModel
+	detail     DetailModel
+	libraryUCs []*usecase.LibraryUseCase
+	width      int
+	height     int
 }
 
 func NewApp(searchUC *usecase.SearchUseCase, queueUC *usecase.QueueUseCase, libraryUCs ...*usecase.LibraryUseCase) App {
 	return App{
-		current: screenSearch,
-		search:  NewSearchModel(searchUC),
-		library: NewLibraryModel(libraryUCs...),
-		queue:   NewQueueModel(queueUC),
-		detail:  NewDetailModel(),
+		current:    screenSearch,
+		search:     NewSearchModel(searchUC),
+		library:    NewLibraryModel(libraryUCs...),
+		queue:      NewQueueModel(queueUC),
+		detail:     NewDetailModel(),
+		libraryUCs: libraryUCs,
 	}
 }
 
@@ -90,7 +92,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case SwitchToDetailMsg:
-		a.detail = NewDetailModelWithItem(msg.Item)
+		a.detail = NewDetailModelWithItem(msg.Item, a.ucForItem(msg.Item))
 		a.current = screenDetail
 		return a, a.detail.Init()
 	}
@@ -143,4 +145,20 @@ func (a App) tab(label string, s screen) string {
 		return activeTabStyle.Render(label)
 	}
 	return tabStyle.Render(label)
+}
+
+// ucForItem returns the LibraryUseCase that matches the item's media type.
+// The libraryUCs slice is ordered: [0] Radarr (movie), [1] Sonarr (series),
+// [2] Lidarr (artist), [3] Readarr (book). Returns nil if none available.
+func (a App) ucForItem(item domain.MediaItem) *usecase.LibraryUseCase {
+	idx := map[domain.MediaType]int{
+		domain.MediaTypeMovie:  0,
+		domain.MediaTypeSeries: 1,
+		domain.MediaTypeArtist: 2,
+		domain.MediaTypeBook:   3,
+	}
+	if i, ok := idx[item.Type]; ok && i < len(a.libraryUCs) {
+		return a.libraryUCs[i]
+	}
+	return nil
 }
