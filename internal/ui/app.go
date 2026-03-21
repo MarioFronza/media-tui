@@ -37,12 +37,12 @@ type App struct {
 	height  int
 }
 
-func NewApp(searchUC *usecase.SearchUseCase, libraryUCs ...*usecase.LibraryUseCase) App {
+func NewApp(searchUC *usecase.SearchUseCase, queueUC *usecase.QueueUseCase, libraryUCs ...*usecase.LibraryUseCase) App {
 	return App{
 		current: screenSearch,
 		search:  NewSearchModel(searchUC),
 		library: NewLibraryModel(libraryUCs...),
-		queue:   NewQueueModel(),
+		queue:   NewQueueModel(queueUC),
 		detail:  NewDetailModel(),
 	}
 }
