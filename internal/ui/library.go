@@ -13,8 +13,7 @@ import (
 )
 
 type libraryResultMsg struct {
-	service string
-	items   []domain.LibraryItem
+	items []domain.LibraryItem
 }
 
 type serviceTab struct {
@@ -25,12 +24,9 @@ type serviceTab struct {
 type LibraryModel struct {
 	services  []serviceTab
 	activeIdx int
-	spinner   spinner.Model
+	list      listLifecycle
 	table     table.Model
 	items     []domain.LibraryItem
-	loading   bool
-	width     int
-	height    int
 }
 
 func NewLibraryModel(usecases ...*usecase.LibraryUseCase) LibraryModel {
@@ -46,9 +42,9 @@ func NewLibraryModel(usecases ...*usecase.LibraryUseCase) LibraryModel {
 		}
 	}
 
-	sp := spinner.New()
-	sp.Spinner = spinner.Dot
-	sp.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
+	list := newListLifecycle()
+	list.spinner.Spinner = spinner.Dot
+	list.spinner.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
 
 	cols := []table.Column{
 		{Title: "Title", Width: 40},
@@ -64,14 +60,12 @@ func NewLibraryModel(usecases ...*usecase.LibraryUseCase) LibraryModel {
 
 	return LibraryModel{
 		services: services,
-		spinner:  sp,
+		list:     list,
 		table:    t,
 	}
 }
 
 func (m *LibraryModel) SetSize(w, h int) {
-	m.width = w
-	m.height = h
 	titleW := max(10, w-22)
 	m.table.SetColumns([]table.Column{
 		{Title: "Title", Width: titleW},
@@ -111,7 +105,7 @@ func (m LibraryModel) handleKey(msg tea.KeyMsg) (LibraryModel, tea.Cmd) {
 }
 
 func (m LibraryModel) handleResult(msg libraryResultMsg) (LibraryModel, tea.Cmd) {
-	m.loading = false
+	m.list.loading = false
 	m.items = msg.items
 	m.table.SetRows(toLibraryRows(msg.items))
 	return m, nil
@@ -119,7 +113,7 @@ func (m LibraryModel) handleResult(msg libraryResultMsg) (LibraryModel, tea.Cmd)
 
 func (m LibraryModel) updateSpinner(msg spinner.TickMsg) (LibraryModel, tea.Cmd) {
 	var cmd tea.Cmd
-	m.spinner, cmd = m.spinner.Update(msg)
+	m.list.spinner, cmd = m.list.spinner.Update(msg)
 	return m, cmd
 }
 
@@ -133,13 +127,14 @@ func (m LibraryModel) fetchLibrary() (LibraryModel, tea.Cmd) {
 	svc := m.services[m.activeIdx]
 	if svc.usecase == nil {
 		return m, func() tea.Msg {
-			return libraryResultMsg{service: svc.name, items: nil}
+			return libraryResultMsg{items: nil}
 		}
 	}
-	m.loading = true
-	return m, tea.Batch(m.spinner.Tick, func() tea.Msg {
+	var spinnerCmd tea.Cmd
+	m.list, spinnerCmd = m.list.startFetch()
+	return m, tea.Batch(spinnerCmd, func() tea.Msg {
 		items, _ := svc.usecase.List()
-		return libraryResultMsg{service: svc.name, items: items}
+		return libraryResultMsg{items: items}
 	})
 }
 
@@ -147,8 +142,8 @@ func (m LibraryModel) View() string {
 	header := lipgloss.NewStyle().Bold(true).Render("Library") + "\n\n"
 	tabs := m.renderTabs() + "\n\n"
 
-	if m.loading {
-		return header + tabs + m.spinner.View() + " Loading..."
+	if m.list.loading {
+		return header + tabs + m.list.spinner.View() + " Loading..."
 	}
 
 	if len(m.items) == 0 {

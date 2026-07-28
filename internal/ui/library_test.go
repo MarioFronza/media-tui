@@ -24,7 +24,7 @@ func TestLibraryModel_UpdateWithTab_SetsLoading(t *testing.T) {
 	m := NewLibraryModel(uc, uc)
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyTab})
 
-	if !updated.loading {
+	if !updated.list.loading {
 		t.Fatalf("expected loading to be true, got false")
 	}
 }
