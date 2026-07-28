@@ -23,7 +23,7 @@ func TestQueueModel_UpdateWithR_SetsLoading(t *testing.T) {
 	m := NewQueueModel(nil)
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("r")})
 
-	if !updated.loading {
+	if !updated.list.loading {
 		t.Fatalf("expected loading to be true, got false")
 	}
 }
