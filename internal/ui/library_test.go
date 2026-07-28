@@ -9,16 +9,6 @@ import (
 	"github.com/MarioFronza/media-tui/internal/usecase"
 )
 
-type fakeLibraryRepo struct {
-	items []domain.LibraryItem
-}
-
-func (f *fakeLibraryRepo) Search(_ string) ([]domain.MediaItem, error) { return nil, nil }
-func (f *fakeLibraryRepo) Add(_ domain.MediaItem) error                { return nil }
-func (f *fakeLibraryRepo) GetLibrary() ([]domain.LibraryItem, error)   { return f.items, nil }
-func (f *fakeLibraryRepo) GetQueue() ([]domain.QueueItem, error)       { return nil, nil }
-func (f *fakeLibraryRepo) MediaType() domain.MediaType                 { return "" }
-
 func TestLibraryModel_UpdateWithTab_SetsLoading(t *testing.T) {
 	uc := usecase.NewLibraryUseCase(nil)
 	m := NewLibraryModel(uc, uc)
@@ -30,7 +20,9 @@ func TestLibraryModel_UpdateWithTab_SetsLoading(t *testing.T) {
 }
 
 func TestLibraryModel_UpdateWithTab_LoadsActiveServiceItems(t *testing.T) {
-	repo := &fakeLibraryRepo{items: []domain.LibraryItem{{ID: 1, Title: "Dune"}}}
+	repo := &fakeRepo{getLibraryFn: func() ([]domain.LibraryItem, error) {
+		return []domain.LibraryItem{{ID: 1, Title: "Dune"}}, nil
+	}}
 	uc := usecase.NewLibraryUseCase(repo)
 	m := NewLibraryModel(uc, uc)
 

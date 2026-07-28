@@ -9,16 +9,6 @@ import (
 	"github.com/MarioFronza/media-tui/internal/usecase"
 )
 
-type fakeQueueRepo struct {
-	items []domain.QueueItem
-}
-
-func (f *fakeQueueRepo) Search(_ string) ([]domain.MediaItem, error)  { return nil, nil }
-func (f *fakeQueueRepo) Add(_ domain.MediaItem) error                 { return nil }
-func (f *fakeQueueRepo) GetLibrary() ([]domain.LibraryItem, error)    { return nil, nil }
-func (f *fakeQueueRepo) GetQueue() ([]domain.QueueItem, error)        { return f.items, nil }
-func (f *fakeQueueRepo) MediaType() domain.MediaType                  { return "" }
-
 func TestQueueModel_UpdateWithR_SetsLoading(t *testing.T) {
 	m := NewQueueModel(nil)
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("r")})
@@ -29,7 +19,9 @@ func TestQueueModel_UpdateWithR_SetsLoading(t *testing.T) {
 }
 
 func TestQueueModel_UpdateWithR_RefreshesQueueItems(t *testing.T) {
-	repo := &fakeQueueRepo{items: []domain.QueueItem{{ID: 1, Title: "Inception"}}}
+	repo := &fakeRepo{getQueueFn: func() ([]domain.QueueItem, error) {
+		return []domain.QueueItem{{ID: 1, Title: "Inception"}}, nil
+	}}
 	uc := usecase.NewQueueUseCase(repo)
 	m := NewQueueModel(uc)
 
