@@ -14,7 +14,7 @@ func TestSearchModel_UpdateWithEnter_SetsLoading(t *testing.T) {
 	m.input.SetValue("inception")
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
 
-	if !updated.loading {
+	if !updated.list.loading {
 		t.Fatalf("expected loading to be true, got false")
 	}
 }

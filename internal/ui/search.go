@@ -19,14 +19,11 @@ type searchResultMsg struct {
 
 type SearchModel struct {
 	input    textinput.Model
-	spinner  spinner.Model
+	list     listLifecycle
 	table    table.Model
 	results  []domain.MediaItem
-	loading  bool
 	searched bool
 	usecase  *usecase.SearchUseCase
-	width    int
-	height   int
 }
 
 func NewSearchModel(uc *usecase.SearchUseCase) SearchModel {
@@ -34,9 +31,9 @@ func NewSearchModel(uc *usecase.SearchUseCase) SearchModel {
 	ti.Placeholder = "Search movies, series, artists, books..."
 	ti.Focus()
 
-	sp := spinner.New()
-	sp.Spinner = spinner.Dot
-	sp.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
+	list := newListLifecycle()
+	list.spinner.Spinner = spinner.Dot
+	list.spinner.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
 
 	cols := []table.Column{
 		{Title: "Title", Width: 40},
@@ -53,7 +50,7 @@ func NewSearchModel(uc *usecase.SearchUseCase) SearchModel {
 
 	return SearchModel{
 		input:   ti,
-		spinner: sp,
+		list:    list,
 		table:   t,
 		usecase: uc,
 	}
@@ -92,13 +89,14 @@ func (m SearchModel) handleKey(msg tea.KeyMsg) (SearchModel, tea.Cmd) {
 
 func (m SearchModel) startSearch() (SearchModel, tea.Cmd) {
 	term := m.input.Value()
-	if term == "" || m.loading {
+	if term == "" || m.list.loading {
 		return m, nil
 	}
-	m.loading = true
+	var spinnerCmd tea.Cmd
+	m.list, spinnerCmd = m.list.startFetch()
 	m.searched = true
 	m.input.Blur()
-	return m, tea.Batch(m.spinner.Tick, m.runSearch(term))
+	return m, tea.Batch(spinnerCmd, m.runSearch(term))
 }
 
 func (m SearchModel) selectResult() (SearchModel, tea.Cmd) {
@@ -129,7 +127,7 @@ func (m SearchModel) blurInput() (SearchModel, tea.Cmd) {
 }
 
 func (m SearchModel) handleSearchResult(msg searchResultMsg) (SearchModel, tea.Cmd) {
-	m.loading = false
+	m.list.loading = false
 	m.results = msg.items
 	m.table.SetRows(toTableRows(msg.items))
 	m.table.Focus()
@@ -138,15 +136,15 @@ func (m SearchModel) handleSearchResult(msg searchResultMsg) (SearchModel, tea.C
 
 func (m SearchModel) updateSpinner(msg spinner.TickMsg) (SearchModel, tea.Cmd) {
 	var cmd tea.Cmd
-	m.spinner, cmd = m.spinner.Update(msg)
+	m.list.spinner, cmd = m.list.spinner.Update(msg)
 	return m, cmd
 }
 
 func (m SearchModel) updateFocusedComponent(msg tea.Msg) (SearchModel, tea.Cmd) {
 	var cmd tea.Cmd
 	switch {
-	case m.loading:
-		m.spinner, cmd = m.spinner.Update(msg)
+	case m.list.loading:
+		m.list.spinner, cmd = m.list.spinner.Update(msg)
 	case m.table.Focused():
 		m.table, cmd = m.table.Update(msg)
 	default:
@@ -159,8 +157,8 @@ func (m SearchModel) View() string {
 	header := lipgloss.NewStyle().Bold(true).Render("Search") + "\n\n"
 	inputView := m.input.View() + "\n\n"
 
-	if m.loading {
-		return header + inputView + m.spinner.View() + " Searching..."
+	if m.list.loading {
+		return header + inputView + m.list.spinner.View() + " Searching..."
 	}
 
 	if m.searched && len(m.results) == 0 {
@@ -176,8 +174,6 @@ func (m SearchModel) View() string {
 }
 
 func (m *SearchModel) SetSize(w, h int) {
-	m.width = w
-	m.height = h
 	m.input.Width = w - 2
 	titleW := max(10, w-31)
 	m.table.SetColumns([]table.Column{
