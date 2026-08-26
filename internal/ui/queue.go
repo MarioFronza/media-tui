@@ -16,18 +16,15 @@ type queueResultMsg struct {
 
 type QueueModel struct {
 	usecase *usecase.QueueUseCase
-	spinner spinner.Model
+	list    listLifecycle
 	table   table.Model
 	items   []domain.QueueItem
-	loading bool
-	width   int
-	height  int
 }
 
 func NewQueueModel(uc *usecase.QueueUseCase) QueueModel {
-	sp := spinner.New()
-	sp.Spinner = spinner.Dot
-	sp.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
+	list := newListLifecycle()
+	list.spinner.Spinner = spinner.Dot
+	list.spinner.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
 
 	cols := []table.Column{
 		{Title: "Title", Width: 40},
@@ -44,14 +41,12 @@ func NewQueueModel(uc *usecase.QueueUseCase) QueueModel {
 
 	return QueueModel{
 		usecase: uc,
-		spinner: sp,
+		list:    list,
 		table:   t,
 	}
 }
 
 func (m *QueueModel) SetSize(w, h int) {
-	m.width = w
-	m.height = h
 	titleW := max(10, w-42)
 	m.table.SetColumns([]table.Column{
 		{Title: "Title", Width: titleW},
@@ -88,7 +83,7 @@ func (m QueueModel) handleKey(msg tea.KeyMsg) (QueueModel, tea.Cmd) {
 }
 
 func (m QueueModel) handleResult(msg queueResultMsg) (QueueModel, tea.Cmd) {
-	m.loading = false
+	m.list.loading = false
 	m.items = msg.items
 	m.table.SetRows(toQueueRows(msg.items))
 	return m, nil
@@ -96,7 +91,7 @@ func (m QueueModel) handleResult(msg queueResultMsg) (QueueModel, tea.Cmd) {
 
 func (m QueueModel) updateSpinner(msg spinner.TickMsg) (QueueModel, tea.Cmd) {
 	var cmd tea.Cmd
-	m.spinner, cmd = m.spinner.Update(msg)
+	m.list.spinner, cmd = m.list.spinner.Update(msg)
 	return m, cmd
 }
 
@@ -107,8 +102,9 @@ func (m QueueModel) updateTable(msg tea.Msg) (QueueModel, tea.Cmd) {
 }
 
 func (m QueueModel) fetchQueue() (QueueModel, tea.Cmd) {
-	m.loading = true
-	return m, tea.Batch(m.spinner.Tick, func() tea.Msg {
+	var spinnerCmd tea.Cmd
+	m.list, spinnerCmd = m.list.startFetch()
+	return m, tea.Batch(spinnerCmd, func() tea.Msg {
 		items, _ := m.usecase.Execute()
 		return queueResultMsg{items: items}
 	})
@@ -117,8 +113,8 @@ func (m QueueModel) fetchQueue() (QueueModel, tea.Cmd) {
 func (m QueueModel) View() string {
 	header := lipgloss.NewStyle().Bold(true).Render("Queue") + "\n\n"
 
-	if m.loading {
-		return header + m.spinner.View() + " Loading..."
+	if m.list.loading {
+		return header + m.list.spinner.View() + " Loading..."
 	}
 
 	if len(m.items) == 0 {
